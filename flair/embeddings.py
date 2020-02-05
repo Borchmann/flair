@@ -1241,7 +1241,7 @@ class TransformerXLEmbeddings(TrainableTokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super(TransformerXLEmbeddings, self).__init__(fine_tune)
 
         self.tokenizer = TransfoXLTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1306,7 +1306,7 @@ class XLNetEmbeddings(TrainableTokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super(XLMEmbeddings, self).__init__(fine_tune)
 
         self.tokenizer = XLNetTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = XLNetModel.from_pretrained(
@@ -1372,7 +1372,7 @@ class XLMEmbeddings(TrainableTokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super(XLMEmbeddings, self).__init__(fine_tune)
 
         self.tokenizer = XLMTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = XLMModel.from_pretrained(
@@ -1437,7 +1437,7 @@ class OpenAIGPTEmbeddings(TrainableTokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super(OpenAIGPTEmbeddings, self).__init__(fine_tune)
 
         self.tokenizer = OpenAIGPTTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1501,7 +1501,7 @@ class OpenAIGPT2Embeddings(TrainableTokenEmbeddings):
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         """
-        super().__init__()
+        super(OpenAIGPT2Embeddings, self).__init__(fine_tune)
 
         self.tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = GPT2Model.from_pretrained(
@@ -1544,7 +1544,7 @@ class OpenAIGPT2Embeddings(TrainableTokenEmbeddings):
         return sentences
 
 
-class RoBERTaEmbeddings(TokenEmbeddings):
+class RoBERTaEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "roberta-base",
@@ -1560,7 +1560,7 @@ class RoBERTaEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super(RoBERTaEmbeddings, self).__init__(fine_tune)
 
         self.tokenizer = RobertaTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = RobertaModel.from_pretrained(
@@ -1619,7 +1619,7 @@ class CamembertEmbeddings(TrainableTokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super(CamembertEmbeddings, self).__init__(fine_tune)
 
         self.tokenizer = CamembertTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1693,7 +1693,7 @@ class XLMRobertaEmbeddings(TrainableTokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super(XLMRobertaEmbeddings, self).__init__(fine_tune)
 
         self.tokenizer = XLMRobertaTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1762,7 +1762,7 @@ class CharacterEmbeddings(TrainableTokenEmbeddings):
     ):
         """Uses the default character dictionary if none provided."""
 
-        super().__init__(True)
+        super(CharacterEmbeddings, self).__init__(True)
         self.name = "Char"
 
         # use list of common characters if none provided
@@ -2040,7 +2040,7 @@ class FlairEmbeddings(TrainableTokenEmbeddings):
         if "chars_per_chunk" not in self.__dict__:
             self.chars_per_chunk = 512
 
-        super().train(mode)
+        super(FlairEmbeddings, self).train(mode)
 
     @property
     def embedding_length(self) -> int:
@@ -2204,13 +2204,14 @@ class PooledFlairEmbeddings(TokenEmbeddings):
         return self.embedding_length
 
 
-class BertEmbeddings(TokenEmbeddings):
+class BertEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         bert_model_or_path: str = "bert-base-uncased",
         layers: str = "-1,-2,-3,-4",
         pooling_operation: str = "first",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """
         Bidirectional transformer embeddings of words, as proposed in Devlin et al., 2018.
@@ -2219,8 +2220,9 @@ class BertEmbeddings(TokenEmbeddings):
         :param layers: string indicating which layers to take for embedding
         :param pooling_operation: how to get from token piece embeddings to token embedding. Either pool them and take
         the average ('mean') or use first word piece embedding as token embedding ('first)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super(BertEmbeddings, self).__init__(fine_tune)
 
         if "distilbert" in bert_model_or_path:
             try:
