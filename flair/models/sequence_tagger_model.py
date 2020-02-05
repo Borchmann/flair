@@ -80,6 +80,7 @@ class SequenceTagger(flair.nn.Model):
         pickle_module: str = "pickle",
         beta: float = 1.0,
         loss_weights: Dict[str, float] = None,
+        finetune_embeddings: bool = False,
     ):
         """
         Initializes a SequenceTagger

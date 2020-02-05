@@ -117,6 +117,25 @@ class TokenEmbeddings(Embeddings):
         return "word-level"
 
 
+class TrainableTokenEmbeddings(TokenEmbeddings):
+    """Abstract base class for all embeddings that can be finetuned or trained during sequence model training."""
+
+    def __init__(self, fine_tune: bool = False):
+        self.training = False
+        self.fine_tune = fine_tune
+
+    @property
+    def static_embeddings(self):
+        return not self.training
+
+    def train(self, mode: bool = True):
+        if self.fine_tune:
+            self.training = mode
+
+    def eval(self):
+        self.train(False)
+
+
 class DocumentEmbeddings(Embeddings):
     """Abstract base class for all document-level embeddings. Ever new type of document embedding must implement these methods."""
 
@@ -1137,6 +1156,7 @@ def _get_transformer_sentence_embeddings(
     use_scalar_mix: bool,
     bos_token: str = None,
     eos_token: str = None,
+    requires_grad: bool = False,
 ) -> List[Sentence]:
     """
     Builds sentence embeddings for Transformer-based architectures.
@@ -1151,7 +1171,7 @@ def _get_transformer_sentence_embeddings(
     :param eos_token: defines end of sentence token (used for right padding)
     :return: list of sentences (each token of a sentence is now embedded)
     """
-    with torch.no_grad():
+    with torch.set_grad_enabled(requires_grad):
         for sentence in sentences:
             token_subwords_mapping: Dict[int, int] = {}
 
@@ -1207,19 +1227,21 @@ def _get_transformer_sentence_embeddings(
     return sentences
 
 
-class TransformerXLEmbeddings(TokenEmbeddings):
+class TransformerXLEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "transfo-xl-wt103",
         layers: str = "1,2,3",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """Transformer-XL embeddings, as proposed in Dai et al., 2019.
         :param pretrained_model_name_or_path: name or path of Transformer-XL model
         :param layers: comma-separated list of layers
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__()
+        super().__init__(fine_tune)
 
         self.tokenizer = TransfoXLTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1231,7 +1253,6 @@ class TransformerXLEmbeddings(TokenEmbeddings):
         self.name = pretrained_model_name_or_path
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1246,7 +1267,7 @@ class TransformerXLEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1257,6 +1278,7 @@ class TransformerXLEmbeddings(TokenEmbeddings):
             pooling_operation="first",
             use_scalar_mix=self.use_scalar_mix,
             eos_token="<eos>",
+            requires_grad=self.training,
         )
 
         return sentences
@@ -1268,19 +1290,21 @@ class TransformerXLEmbeddings(TokenEmbeddings):
         return self.name
 
 
-class XLNetEmbeddings(TokenEmbeddings):
+class XLNetEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "xlnet-large-cased",
         layers: str = "1",
         pooling_operation: str = "first_last",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """XLNet embeddings, as proposed in Yang et al., 2019.
         :param pretrained_model_name_or_path: name or path of XLNet model
         :param layers: comma-separated list of layers
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
         super().__init__()
 
@@ -1293,7 +1317,6 @@ class XLNetEmbeddings(TokenEmbeddings):
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1308,7 +1331,7 @@ class XLNetEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1320,6 +1343,7 @@ class XLNetEmbeddings(TokenEmbeddings):
             use_scalar_mix=self.use_scalar_mix,
             bos_token="<s>",
             eos_token="</s>",
+            requires_grad=self.training,
         )
 
         return sentences
@@ -1331,13 +1355,14 @@ class XLNetEmbeddings(TokenEmbeddings):
         return self.name
 
 
-class XLMEmbeddings(TokenEmbeddings):
+class XLMEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "xlm-mlm-en-2048",
         layers: str = "1",
         pooling_operation: str = "first_last",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """
         XLM embeddings, as proposed in Guillaume et al., 2019.
@@ -1345,6 +1370,7 @@ class XLMEmbeddings(TokenEmbeddings):
         :param layers: comma-separated list of layers
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
         super().__init__()
 
@@ -1357,7 +1383,6 @@ class XLMEmbeddings(TokenEmbeddings):
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1372,7 +1397,7 @@ class XLMEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1384,6 +1409,7 @@ class XLMEmbeddings(TokenEmbeddings):
             use_scalar_mix=self.use_scalar_mix,
             bos_token="<s>",
             eos_token="</s>",
+            requires_grad=self.training,
         )
 
         return sentences
@@ -1395,19 +1421,21 @@ class XLMEmbeddings(TokenEmbeddings):
         return self.name
 
 
-class OpenAIGPTEmbeddings(TokenEmbeddings):
+class OpenAIGPTEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "openai-gpt",
         layers: str = "1",
         pooling_operation: str = "first_last",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """OpenAI GPT embeddings, as proposed in Radford et al. 2018.
         :param pretrained_model_name_or_path: name or path of OpenAI GPT model
         :param layers: comma-separated list of layers
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
         super().__init__()
 
@@ -1422,7 +1450,6 @@ class OpenAIGPTEmbeddings(TokenEmbeddings):
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1437,7 +1464,7 @@ class OpenAIGPTEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1447,6 +1474,7 @@ class OpenAIGPTEmbeddings(TokenEmbeddings):
             layers=self.layers,
             pooling_operation=self.pooling_operation,
             use_scalar_mix=self.use_scalar_mix,
+            requires_grad=self.training,
         )
 
         return sentences
@@ -1458,13 +1486,14 @@ class OpenAIGPTEmbeddings(TokenEmbeddings):
         return self.name
 
 
-class OpenAIGPT2Embeddings(TokenEmbeddings):
+class OpenAIGPT2Embeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "gpt2-medium",
         layers: str = "1",
         pooling_operation: str = "first_last",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """OpenAI GPT-2 embeddings, as proposed in Radford et al. 2019.
         :param pretrained_model_name_or_path: name or path of OpenAI GPT-2 model
@@ -1483,7 +1512,6 @@ class OpenAIGPT2Embeddings(TokenEmbeddings):
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1498,7 +1526,7 @@ class OpenAIGPT2Embeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1510,6 +1538,7 @@ class OpenAIGPT2Embeddings(TokenEmbeddings):
             use_scalar_mix=self.use_scalar_mix,
             bos_token="<|endoftext|>",
             eos_token="<|endoftext|>",
+            requires_grad=self.training,
         )
 
         return sentences
@@ -1522,12 +1551,14 @@ class RoBERTaEmbeddings(TokenEmbeddings):
         layers: str = "-1",
         pooling_operation: str = "first",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """RoBERTa, as proposed by Liu et al. 2019.
         :param pretrained_model_name_or_path: name or path of RoBERTa model
         :param layers: comma-separated list of layers
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
         super().__init__()
 
@@ -1540,7 +1571,6 @@ class RoBERTaEmbeddings(TokenEmbeddings):
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1555,7 +1585,7 @@ class RoBERTaEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1567,24 +1597,27 @@ class RoBERTaEmbeddings(TokenEmbeddings):
             use_scalar_mix=self.use_scalar_mix,
             bos_token="<s>",
             eos_token="</s>",
+            requires_grad=self.training,
         )
 
         return sentences
 
 
-class CamembertEmbeddings(TokenEmbeddings):
+class CamembertEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "camembert-base",
         layers: str = "-1",
         pooling_operation: str = "first",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """CamemBERT, a Tasty French Language Model, as proposed by Martin et al. 2019.
         :param pretrained_model_name_or_path: name or path of RoBERTa model
         :param layers: comma-separated list of layers
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
         super().__init__()
 
@@ -1599,7 +1632,6 @@ class CamembertEmbeddings(TokenEmbeddings):
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1627,7 +1659,7 @@ class CamembertEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1639,24 +1671,27 @@ class CamembertEmbeddings(TokenEmbeddings):
             use_scalar_mix=self.use_scalar_mix,
             bos_token="<s>",
             eos_token="</s>",
+            requires_grad=self.training,
         )
 
         return sentences
 
 
-class XLMRobertaEmbeddings(TokenEmbeddings):
+class XLMRobertaEmbeddings(TrainableTokenEmbeddings):
     def __init__(
         self,
         pretrained_model_name_or_path: str = "xlm-roberta-large",
         layers: str = "-1",
         pooling_operation: str = "first",
         use_scalar_mix: bool = False,
+        fine_tune: bool = False,
     ):
         """XLM-RoBERTa as proposed by Conneau et al. 2019.
         :param pretrained_model_name_or_path: name or path of XLM-R model
         :param layers: comma-separated list of layers
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
+        :param fine_tune: if set to True, the gradient will propagate into the language model
         """
         super().__init__()
 
@@ -1671,7 +1706,6 @@ class XLMRobertaEmbeddings(TokenEmbeddings):
         self.layers: List[int] = [int(layer) for layer in layers.split(",")]
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
-        self.static_embeddings = True
 
         dummy_sentence: Sentence = Sentence()
         dummy_sentence.add_token(Token("hello"))
@@ -1699,7 +1733,7 @@ class XLMRobertaEmbeddings(TokenEmbeddings):
 
     def _add_embeddings_internal(self, sentences: List[Sentence]) -> List[Sentence]:
         self.model.to(flair.device)
-        self.model.eval()
+        self.model.train(self.training)
 
         sentences = _get_transformer_sentence_embeddings(
             sentences=sentences,
@@ -1711,12 +1745,13 @@ class XLMRobertaEmbeddings(TokenEmbeddings):
             use_scalar_mix=self.use_scalar_mix,
             bos_token="<s>",
             eos_token="</s>",
+            requires_grad=self.training,
         )
 
         return sentences
 
 
-class CharacterEmbeddings(TokenEmbeddings):
+class CharacterEmbeddings(TrainableTokenEmbeddings):
     """Character embeddings of words, as proposed in Lample et al., 2016."""
 
     def __init__(
@@ -1727,9 +1762,8 @@ class CharacterEmbeddings(TokenEmbeddings):
     ):
         """Uses the default character dictionary if none provided."""
 
-        super().__init__()
+        super().__init__(True)
         self.name = "Char"
-        self.static_embeddings = False
 
         # use list of common characters if none provided
         if path_to_char_dict is None:
@@ -1826,7 +1860,7 @@ class CharacterEmbeddings(TokenEmbeddings):
         return self.name
 
 
-class FlairEmbeddings(TokenEmbeddings):
+class FlairEmbeddings(TrainableTokenEmbeddings):
     """Contextual string embeddings of words, as proposed in Akbik et al., 2018."""
 
     def __init__(self, model, fine_tune: bool = False, chars_per_chunk: int = 512):
@@ -1840,7 +1874,7 @@ class FlairEmbeddings(TokenEmbeddings):
         :param  chars_per_chunk: max number of chars per rnn pass to control speed/memory tradeoff. Higher means faster but requires
                 more memory. Lower means slower but less memory.
         """
-        super().__init__()
+        super().__init__(fine_tune)
 
         cache_dir = Path("embeddings")
 
@@ -1988,10 +2022,6 @@ class FlairEmbeddings(TokenEmbeddings):
             self.lm: LanguageModel = LanguageModel.load_language_model(model)
             self.name = str(model)
 
-        # embeddings are static if we don't do finetuning
-        self.fine_tune = fine_tune
-        self.static_embeddings = not fine_tune
-
         self.is_forward_lm: bool = self.lm.is_forward_lm
         self.chars_per_chunk: int = chars_per_chunk
 
@@ -2007,17 +2037,10 @@ class FlairEmbeddings(TokenEmbeddings):
         self.eval()
 
     def train(self, mode=True):
-
-        # make compatible with serialized models (TODO: remove)
-        if "fine_tune" not in self.__dict__:
-            self.fine_tune = False
         if "chars_per_chunk" not in self.__dict__:
             self.chars_per_chunk = 512
 
-        if not self.fine_tune:
-            pass
-        else:
-            super(FlairEmbeddings, self).train(mode)
+        super().train(mode)
 
     @property
     def embedding_length(self) -> int:
