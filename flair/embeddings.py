@@ -131,6 +131,7 @@ class TrainableTokenEmbeddings(TokenEmbeddings):
     def train(self, mode: bool = True):
         if self.fine_tune:
             self.training = mode
+            self.model.train(mode)
 
     def eval(self):
         self.train(False)
@@ -1874,7 +1875,7 @@ class FlairEmbeddings(TrainableTokenEmbeddings):
         :param  chars_per_chunk: max number of chars per rnn pass to control speed/memory tradeoff. Higher means faster but requires
                 more memory. Lower means slower but less memory.
         """
-        super().__init__(fine_tune)
+        super(FlairEmbeddings, self).__init__(fine_tune)
 
         cache_dir = Path("embeddings")
 
@@ -2016,10 +2017,10 @@ class FlairEmbeddings(TrainableTokenEmbeddings):
         from flair.models import LanguageModel
 
         if type(model) == LanguageModel:
-            self.lm: LanguageModel = model
+            self.model: LanguageModel = model
             self.name = f"Task-LSTM-{self.lm.hidden_size}-{self.lm.nlayers}-{self.lm.is_forward_lm}"
         else:
-            self.lm: LanguageModel = LanguageModel.load_language_model(model)
+            self.model: LanguageModel = LanguageModel.load_language_model(model)
             self.name = str(model)
 
         self.is_forward_lm: bool = self.lm.is_forward_lm
@@ -2060,7 +2061,7 @@ class FlairEmbeddings(TrainableTokenEmbeddings):
             end_marker = " "
 
             # get hidden states from language model
-            all_hidden_states_in_lm = self.lm.get_representation(
+            all_hidden_states_in_lm = self.model.get_representation(
                 text_sentences, start_marker, end_marker, self.chars_per_chunk
             )
 
