@@ -867,7 +867,7 @@ class ELMoEmbeddings(TokenEmbeddings):
         else:
             cuda_device = 0
 
-        self.model = allennlp.commands.elmo.ElmoEmbedder(
+        self.ee = allennlp.commands.elmo.ElmoEmbedder(
             options_file=options_file, weight_file=weight_file, cuda_device=cuda_device
         )
 
@@ -880,6 +880,10 @@ class ELMoEmbeddings(TokenEmbeddings):
         )
 
     @property
+    def model(self) -> torch.nn.Module:
+        return self.ee.elmo_bilm
+
+    @property
     def embedding_length(self) -> int:
         return self.__embedding_length
 
@@ -889,7 +893,7 @@ class ELMoEmbeddings(TokenEmbeddings):
         for sentence in sentences:
             sentence_words.append([token.text for token in sentence])
 
-        embeddings = self.model.embed_batch(sentence_words)
+        embeddings = self.ee.embed_batch(sentence_words)
 
         for i, sentence in enumerate(sentences):
 
