@@ -113,7 +113,7 @@ class TokenEmbeddings(Embeddings):
         :param trainable: whether embeddings should be trained when training the sequence labelling model
         """
         self.training = False
-        self.trainable = False
+        self.trainable = trainable
 
     @property
     @abstractmethod
