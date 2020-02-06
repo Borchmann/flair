@@ -106,14 +106,8 @@ class Embeddings(torch.nn.Module):
 class TokenEmbeddings(Embeddings):
     """Abstract base class for all token-level embeddings. Ever new type of word embedding must implement these methods."""
 
-    def __init__(self, trainable: bool = False):
-        """
-        Initializes token embeddings.
-
-        :param trainable: whether embeddings should be trained when training the sequence labelling model
-        """
-        self.training = False
-        self.trainable = trainable
+    training = False  # whether embeddings are being trained at the moment
+    trainable = False  # whether embeddings should be trained when training the sequence labelling model
 
     @property
     @abstractmethod
@@ -510,7 +504,8 @@ class OneHotEmbeddings(TokenEmbeddings):
         embedding_length: int = 300,
         min_freq: int = 3,
     ):
-        super().__init__(True)
+        super().__init__()
+        self.trainable = True
         self.name = "one-hot"
         self.min_freq = min_freq
         self.field = field
@@ -599,8 +594,8 @@ class HashEmbeddings(TokenEmbeddings):
     def __init__(
         self, num_embeddings: int = 1000, embedding_length: int = 300, hash_method="md5"
     ):
-
-        super().__init__(True)
+        super().__init__()
+        self.trainable = True
         self.name = "hash"
 
         self.__num_embeddings = num_embeddings
@@ -768,7 +763,6 @@ class BytePairEmbeddings(TokenEmbeddings):
         self.embedder = BPEmb(lang=language, vs=syllables, dim=dim, cache_dir=cache_dir)
 
         self.__embedding_length: int = self.embedder.emb.vector_size * 2
-        super().__init__()
 
     @property
     def embedding_length(self) -> int:
@@ -826,7 +820,8 @@ class ELMoEmbeddings(TokenEmbeddings):
         :param weight_file: url of allennlp-compatible hdf5 weights file to use
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         try:
             import allennlp.commands.elmo
@@ -1265,7 +1260,8 @@ class TransformerXLEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = TransfoXLTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1330,7 +1326,8 @@ class XLNetEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = XLNetTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = XLNetModel.from_pretrained(
@@ -1396,7 +1393,8 @@ class XLMEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = XLMTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = XLMModel.from_pretrained(
@@ -1461,7 +1459,8 @@ class OpenAIGPTEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = OpenAIGPTTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1525,7 +1524,8 @@ class OpenAIGPT2Embeddings(TokenEmbeddings):
         :param pooling_operation: defines pooling operation for subwords
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = GPT2Model.from_pretrained(
@@ -1584,7 +1584,8 @@ class RoBERTaEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = RobertaTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.model = RobertaModel.from_pretrained(
@@ -1643,7 +1644,8 @@ class CamembertEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = CamembertTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1717,7 +1719,8 @@ class XLMRobertaEmbeddings(TokenEmbeddings):
         :param use_scalar_mix: defines the usage of scalar mix for specified layer(s)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         self.tokenizer = XLMRobertaTokenizer.from_pretrained(
             pretrained_model_name_or_path
@@ -1785,7 +1788,8 @@ class CharacterEmbeddings(TokenEmbeddings):
         hidden_size_char: int = 25,
     ):
         """Uses the default character dictionary if none provided."""
-        super().__init__(True)
+        super().__init__()
+        self.trainable = True
         self.name = "Char"
 
         # use list of common characters if none provided
@@ -1897,7 +1901,8 @@ class FlairEmbeddings(TokenEmbeddings):
         :param  chars_per_chunk: max number of chars per rnn pass to control speed/memory tradeoff. Higher means faster but requires
                 more memory. Lower means slower but less memory.
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         cache_dir = Path("embeddings")
 
@@ -2136,7 +2141,8 @@ class PooledFlairEmbeddings(TokenEmbeddings):
         only_capitalized: bool = False,
         **kwargs,
     ):
-        super().__init__(True)
+        super().__init__()
+        self.trainable = True
 
         # use the character language model embeddings as basis
         if type(contextual_embeddings) is str:
@@ -2242,7 +2248,8 @@ class BertEmbeddings(TokenEmbeddings):
         the average ('mean') or use first word piece embedding as token embedding ('first)
         :param fine_tune: if set to True, the gradient will propagate into the language model
         """
-        super().__init__(fine_tune)
+        super().__init__()
+        self.trainable = fine_tune
 
         if "distilbert" in bert_model_or_path:
             try:
@@ -2471,7 +2478,8 @@ class CharLMEmbeddings(TokenEmbeddings):
         :param cache_directory: if cache_directory is not set, the cache will be written to ~/.flair/embeddings. otherwise the cache
                 is written to the provided directory.
         """
-        super().__init__(not detach)
+        super().__init__()
+        self.trainable = not detach
 
         cache_dir = Path("embeddings")
 
