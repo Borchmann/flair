@@ -80,7 +80,7 @@ class SequenceTagger(flair.nn.Model):
         pickle_module: str = "pickle",
         beta: float = 1.0,
         loss_weights: Dict[str, float] = None,
-        finetune_embeddings: bool = False,
+        glc: torch.tensor = None,
     ):
         """
         Initializes a SequenceTagger
@@ -215,6 +215,7 @@ class SequenceTagger(flair.nn.Model):
                 :, self.tag_dictionary.get_idx_for_item(STOP_TAG)
             ] = -10000
 
+        self.glc = glc
         self.to(flair.device)
 
     def _get_state_dict(self):
@@ -610,8 +611,9 @@ class SequenceTagger(flair.nn.Model):
     ) -> float:
 
         lengths: List[int] = [len(sentence.tokens) for sentence in sentences]
-
         tag_list: List = []
+        noisiness: List[bool] = [sentence.noisy_annotations for sentence in sentences]
+
         for s_id, sentence in enumerate(sentences):
             # get the tags in this sentence
             tag_idx: List[int] = [
@@ -635,13 +637,18 @@ class SequenceTagger(flair.nn.Model):
 
         else:
             score = 0
-            for sentence_feats, sentence_tags, sentence_length in zip(
-                features, tag_list, lengths
+            for sentence_feats, sentence_tags, sentence_length, noisy in zip(
+                features, tag_list, lengths, noisiness
             ):
-                sentence_feats = sentence_feats[:sentence_length]
-                score += torch.nn.functional.cross_entropy(
-                    sentence_feats, sentence_tags, weight=self.loss_weights
-                )
+                if self.glc is None or not noisy:
+                    sentence_feats = sentence_feats[:sentence_length]
+                    score += torch.nn.functional.cross_entropy(
+                        sentence_feats, sentence_tags, weight=self.loss_weights
+                    )
+                else:
+                    pre1 = self.glc[sentence_tags]
+                    pre2 = torch.mul(F.softmax(sentence_feats), pre1)
+                    score -= torch.log(pre2.sum(1)).sum(0)
             score /= len(features)
             return score
 

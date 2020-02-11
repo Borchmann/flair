@@ -591,6 +591,7 @@ class Sentence(DataPoint):
         use_tokenizer: Union[bool, Callable[[str], List[Token]]] = space_tokenizer,
         labels: Union[List[Label], List[str]] = None,
         language_code: str = None,
+        noisy_annotations: bool = False,
     ):
         """
         Class to hold all meta related to a text (tokens, predictions, language code, ...)
@@ -630,6 +631,7 @@ class Sentence(DataPoint):
             )
 
         self.tokenized = None
+        self.noisy_annotations = noisy_annotations
 
     def get_token(self, token_id: int) -> Token:
         for token in self.tokens:
