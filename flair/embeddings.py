@@ -2287,7 +2287,7 @@ class BertEmbeddings(TokenEmbeddings):
         self.pooling_operation = pooling_operation
         self.use_scalar_mix = use_scalar_mix
         self.name = str(bert_model_or_path)
-        self.static_embeddings = True
+
 
     class BertInputFeatures(object):
         """Private helper class for holding BERT-formatted features"""
